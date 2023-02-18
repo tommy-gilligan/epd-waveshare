@@ -223,14 +223,9 @@ where
         delay: &mut DELAY,
         chromatic: &[u8],
     ) -> Result<(), SPI::Error> {
-        let mut c_copy: [u8; 4000] = [0xff; 4000];
-        c_copy.clone_from_slice(chromatic);
-        for element in c_copy.iter_mut() {
-            *element = !(*element);
-        }
         self.wait_until_idle(spi, delay)?;
         self.interface.cmd(spi, Command::WriteRamRed)?;
-        self.interface.data(spi, &c_copy)?;
+        self.interface.data(spi, chromatic)?;
 
         self.wait_until_idle(spi, delay)?;
         Ok(())

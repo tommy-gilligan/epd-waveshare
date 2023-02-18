@@ -454,4 +454,42 @@ mod tests {
             assert_eq!(byte, 0);
         }
     }
+
+    #[test]
+    fn graphics_new() {
+        let mut display = Display::<4, 4, false, { 4 * 4 * 2 / 8 }, TriColor>::default();
+        display.set_pixel(Pixel(Point::new(1, 0), TriColor::White));
+
+        let bw_buffer = display.bw_buffer();
+        let chromatic_buffer = display.chromatic_buffer();
+
+        extern crate std;
+        std::println!("{:?}", bw_buffer);
+        std::println!("{:?}", chromatic_buffer);
+
+        assert_eq!(bw_buffer, [64, 0]);
+        assert_eq!(chromatic_buffer, [64, 0]);
+
+        display.set_pixel(Pixel(Point::new(0, 0), TriColor::Chromatic));
+
+        let bw_buffer = display.bw_buffer();
+        let chromatic_buffer = display.chromatic_buffer();
+
+        std::println!("{:?}", bw_buffer);
+        std::println!("{:?}", chromatic_buffer);
+
+        assert_eq!(bw_buffer, [192, 0]);
+        assert_eq!(chromatic_buffer, [64, 0]);
+
+        display.set_pixel(Pixel(Point::new(0, 0), TriColor::Black));
+
+        let bw_buffer = display.bw_buffer();
+        let chromatic_buffer = display.chromatic_buffer();
+
+        std::println!("{:?}", bw_buffer);
+        std::println!("{:?}", chromatic_buffer);
+
+        assert_eq!(bw_buffer, [64, 0]);
+        assert_eq!(chromatic_buffer, [192, 0]);
+    }
 }
