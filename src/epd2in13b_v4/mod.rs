@@ -52,31 +52,18 @@
 //!```
 use embedded_hal::{
     blocking::{delay::*, spi::Write},
-    digital::v2::*,
+    digital::v2::{InputPin, OutputPin},
 };
 
+use crate::buffer_len;
+use crate::color::TriColor;
 use crate::interface::DisplayInterface;
 use crate::traits::{
     InternalWiAdditions, RefreshLut, WaveshareDisplay, WaveshareThreeColorDisplay,
 };
 
-/// Width of epd2in13bv4 in pixels
-pub const WIDTH: u32 = 122;
-/// Height of epd2in13bv4 in pixels
-pub const HEIGHT: u32 = 250;
-/// Default background color (white) of epd2in13bv4 display
-pub const DEFAULT_BACKGROUND_COLOR: TriColor = TriColor::White;
-
-/// Number of bits for b/w buffer and same for chromatic buffer
-const NUM_DISPLAY_BITS: u32 = (WIDTH * HEIGHT) / 8 + 4;
-
-const IS_BUSY_LOW: bool = false;
-
-use crate::color::TriColor;
-
 pub(crate) mod command;
 use self::command::Command;
-use crate::buffer_len;
 
 /// Full size buffer for use with the 2.13" b/c EPD
 #[cfg(feature = "graphics")]
@@ -87,11 +74,28 @@ pub type Display2in13b = crate::graphics::Display<
     { buffer_len(WIDTH as usize, HEIGHT as usize * 2) },
     TriColor,
 >;
+///
+/// Width of the display.
+pub const WIDTH: u32 = 122;
+
+/// Height of the display
+pub const HEIGHT: u32 = 250;
+
+/// Default Background Color
+pub const DEFAULT_BACKGROUND_COLOR: TriColor = TriColor::White;
+const IS_BUSY_LOW: bool = false;
+
+/// Number of bits for b/w buffer and same for chromatic buffer
+const NUM_DISPLAY_BITS: u32 = (WIDTH * HEIGHT) / 8 + 4;
 
 /// Epd2in13b driver
+///
 pub struct Epd2in13b<SPI, CS, BUSY, DC, RST, DELAY> {
+    /// Connection Interface
     interface: DisplayInterface<SPI, CS, BUSY, DC, RST, DELAY>,
-    color: TriColor,
+
+    /// Background Color
+    background_color: TriColor,
 }
 
 impl<SPI, CS, BUSY, DC, RST, DELAY> InternalWiAdditions<SPI, CS, BUSY, DC, RST, DELAY>
@@ -229,9 +233,9 @@ where
         delay_us: Option<u32>,
     ) -> Result<Self, SPI::Error> {
         let interface = DisplayInterface::new(cs, busy, dc, rst, delay_us);
-        let color = DEFAULT_BACKGROUND_COLOR;
+        let background_color = DEFAULT_BACKGROUND_COLOR;
 
-        let mut epd = Epd2in13b { interface, color };
+        let mut epd = Epd2in13b { interface, background_color };
 
         epd.init(spi, delay)?;
 
@@ -250,12 +254,12 @@ where
         self.init(spi, delay)
     }
 
-    fn set_background_color(&mut self, color: TriColor) {
-        self.color = color;
+    fn set_background_color(&mut self, background_color: TriColor) {
+        self.background_color = background_color;
     }
 
     fn background_color(&self) -> &TriColor {
-        &self.color
+        &self.background_color
     }
 
     fn width(&self) -> u32 {
@@ -279,7 +283,7 @@ where
         self.wait_until_idle(spi, delay)?;
         self.interface.cmd(spi, Command::WriteRamRed)?;
         self.interface
-            .data_x_times(spi, self.color.get_byte_value(), NUM_DISPLAY_BITS)?;
+            .data_x_times(spi, self.background_color.get_byte_value(), NUM_DISPLAY_BITS)?;
 
         self.wait_until_idle(spi, delay)?;
         Ok(())
@@ -319,7 +323,7 @@ where
     }
 
     fn clear_frame(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), SPI::Error> {
-        let color = DEFAULT_BACKGROUND_COLOR.get_byte_value();
+        let background_color = DEFAULT_BACKGROUND_COLOR.get_byte_value();
 
         self.set_ram_area(spi, 0, 0, WIDTH - 1, HEIGHT - 1)?;
         self.set_ram_address_counters(spi, delay, 0, 0)?;
@@ -328,26 +332,26 @@ where
 
         self.interface.data_x_times(
             spi,
-            color,
+            background_color,
             buffer_len(WIDTH as usize, HEIGHT as usize) as u32,
         )?;
 
         // Clear the chromatic
         self.interface.cmd(spi, Command::WriteRamRed)?;
-        self.interface.data_x_times(spi, color, NUM_DISPLAY_BITS)?;
+        self.interface.data_x_times(spi, background_color, NUM_DISPLAY_BITS)?;
 
         // Always keep the base buffer equals to current if not doing partial refresh.
-        if self.refresh == RefreshLut::Full {
+        //if self.refresh == RefreshLut::Full {
             self.set_ram_area(spi, 0, 0, WIDTH - 1, HEIGHT - 1)?;
             self.set_ram_address_counters(spi, delay, 0, 0)?;
 
             self.command(spi, Command::WriteRamRed)?;
             self.interface.data_x_times(
                 spi,
-                color,
+                background_color,
                 buffer_len(WIDTH as usize, HEIGHT as usize) as u32,
             )?;
-        }
+        //}
 
         Ok(())
     }
@@ -403,10 +407,10 @@ where
         )
     }
 
-    /// Triggers the deep sleep mode
-    fn set_sleep_mode(&mut self, spi: &mut SPI, mode: command::DeepSleepMode) -> Result<(), SPI::Error> {
-        self.cmd_with_data(spi, Command::DeepSleepMode, &[mode as u8])
-    }
+    // /// Triggers the deep sleep mode
+    // fn set_sleep_mode(&mut self, spi: &mut SPI, mode: command::DeepSleepMode) -> Result<(), SPI::Error> {
+    //     self.cmd_with_data(spi, Command::DeepSleepMode, &[mode as u8])
+    // }
 
     fn set_driver_output(&mut self, spi: &mut SPI, output: command::DriverOutput) -> Result<(), SPI::Error> {
         self.cmd_with_data(spi, Command::DriverOutputControl, &output.to_bytes())
