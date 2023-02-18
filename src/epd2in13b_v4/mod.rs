@@ -8,7 +8,7 @@
 //!# use embedded_hal_mock::*;
 //!# fn main() -> Result<(), MockError> {
 //!use embedded_graphics::{prelude::*, primitives::{Line, PrimitiveStyle, PrimitiveStyleBuilder}};
-//!use epd_waveshare::{epd2in13b::*, prelude::*};
+//!use epd_waveshare::{epd2in13b_v4::*, prelude::*};
 //!#
 //!# let expectations = [];
 //!# let mut spi = spi::Mock::new(&expectations);
